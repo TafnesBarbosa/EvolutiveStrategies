@@ -5,7 +5,9 @@
 \usepackage[T1]{fontenc}
 \usepackage[dvips]{graphicx}
 \usepackage{caption}
-\usepackage{subcaption}
+\usepackage{indentfirst}
+\usepackage{subfig}
+%\usepackage{subcaption}
 \usepackage[scale=0.8]{geometry} % Reduce document margins
 \usepackage{minted}    
 \usepackage{fancyvrb,newverbs,xcolor}
@@ -23,7 +25,7 @@
 \begin{center}
 \textbf{Instituto Tecnológico de Aeronáutica - ITA} \\
 \textbf{Inteligência Artificial para Robótica Móvel - CT213} \\
-\textbf{Aluno}:     % ESCREVA SEU NOME AQUI
+\textbf{Aluno}: Tafnes Silva Barbosa     % ESCREVA SEU NOME AQUI
 \end{center}
 
 \begin{center}
@@ -38,32 +40,173 @@
 \section{Breve Explicação em Alto Nível da Implementação}
 
 \subsection{Estratégia Evolutiva Simples}
-Sugestão: cerca de meia página.
+A estratégia evolutiva usada se baseia nas seguintes equações:
+\begin{equation}
+	\mathbf{m}^{(g+1)}=\frac{1}{\mu}\sum\limits_{i=1}^{\mu}\mathbf{s}_{i:\lambda}^{(g+1)}
+\end{equation}e
+\begin{equation}
+	\mathbf{C}^{(g+1)}=\frac{1}{\mu}\sum\limits_{i=1}^{\mu}(\mathbf{s}_{i:\lambda}^{(g+1)}-\mathbf{m}^{(g)})(\mathbf{s}_{i:\lambda}^{(g+1)}-\mathbf{m}^{(g)})^{T}
+\end{equation}em que $\mathbf{m}^{(g+1)}$ e $\mathbf{C}^{(g+1)}$ são, respectivamente, a média e a covariância da distribuição gaussiana na geração $g+1$; $\mathbf{s}_{i:\lambda}^{(g+1)}$ é a $i$-ésima melhor amostra (de um total de $\lambda$ amostras em cada geração) e as $\mu$ melhores amostras são escolhidas para evoluir a distribuição gaussiana para a próxima geração. Sabe-se que $\mathbf{m}^{(g+1)}$ e $\mathbf{s}_{i:\lambda}^{(g+1)}$ são vetores coluna, enquanto $\mathbf{C}^{(g+1)}$ é uma matriz.
 
+Podemos criar as matrizes auxiliares seguintes:
+\begin{equation}
+	\mathbf{S}^{(g+1)}=\left[\begin{array}{cccc}
+		\mathbf{s}_{1:\lambda}^{(g+1)}&
+		\mathbf{s}_{2:\lambda}^{(g+1)}&
+		\cdots&
+		\mathbf{s}_{\mu:\lambda}^{(g+1)}
+	\end{array}\right]
+\end{equation}e
+\begin{equation}
+	\mathbf{S}_{m}^{(g+1)}=\left[\begin{array}{cccc}
+		\left(\mathbf{s}_{1:\lambda}^{(g+1)} - \mathbf{m}^{(g)}\right)&
+		\left(\mathbf{s}_{2:\lambda}^{(g+1)} - \mathbf{m}^{(g)}\right)&
+		\cdots&
+		\left(\mathbf{s}_{\mu:\lambda}^{(g+1)} - \mathbf{m}^{(g)}\right)
+	\end{array}\right]
+\end{equation}Daí, podemos dizer que $\mathbf{m}^{(g+1)}$ é a média entre todas as colunas de $\mathbf{S}^{(g+1)}$ e $\mathbf{C}^{(g+1)}=\frac{1}{\mu}(\mathbf{S}_{m}^{(g+1)})\cdot(\mathbf{S}_{m}^{(g+1)})^{T}$.
+Como, no código foram usados vetores linha, fez-se o seguinte:
+
+\begin{minted}[tabsize=4]{python}
+	# sort the samples by fitness value
+	indices = np.argsort(fitnesses)
+	best_samples = self.samples[indices[0:self.mu], :]
+	y = best_samples - self.m
+	self.C = (y.transpose() @ y) / self.mu
+	self.m = np.mean(best_samples, axis=0)
+	self.samples = np.random.multivariate_normal(self.m, self.C, self.population_size)
+\end{minted}
+
+Aqui tem-se que \texttt{best\_samples.transpose()} é a matriz $\mathbf{S}^{(g+1)}$ e \texttt{y.tranpose()} é a matriz $\mathbf{S}_{m}^{(g+1)}$. A primeira amostragem é feita na função \texttt{\_\_init\_\_} da classe \texttt{SimpleEvolutionStrategy}, então na primeira vez que a função \texttt{tell} é chamada nós temos as amostras na geração (1) e a média e a covariância na geração (0) antes de ser atualizada. Por isso, amostra-se novamente depois de atualizar a média e a covariância.
 
 \section{Figuras Comprovando Funcionamento do Código}
 
 \subsection{Função \emph{Translated Sphere}}
-Basta colocar as figuras
+A Figura \ref{fig:translated_sphere} mostra os resultados obtidos através das estratégias evolutivas (12,24)-SES e CMA-ES usando a função de \textit{fitness Translated Sphere}.
+
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering (12,24)-SES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_ses_translated_sphere.eps}}
+	\subfloat[\centering CMA-ES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_cmaes_translated_sphere.eps}}
+	\caption{Resultado obtido para a função de \textit{fitness Translated Sphere} para os algoritmos de estratégias evolutivas (12,24)-SES e CMA-ES.}
+	\label{fig:translated_sphere}
+\end{figure}
+
+A Figura \ref{fig:translated_sphere_montecarlo} mostra a comparação de convergência da função de \textit{fitness Translated Sphere} entre 4 algoritmos usando Monte Carlo para cada geração (\textit{iterations}).
+
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering \textit{Mean Fitness}]{\includegraphics[width=.49\textwidth]{results/mean_fitness_translated_sphere.eps}}
+	\subfloat[\centering \textit{Best Fitness}]{\includegraphics[width=.49\textwidth]{results/best_fitness_translated_sphere.eps}}
+	\caption{Comparação de convergência da função de \textit{fitness Translated Sphere} para quatro algoritmos usando Monte Carlo para cada geração (\textit{iterations}).}
+	\label{fig:translated_sphere_montecarlo}
+\end{figure}
 
 \subsection{Função Ackley}
-Basta colocar as figuras
+A Figura \ref{fig:ackley} mostra os resultados obtidos através das estratégias evolutivas (12,24)-SES e CMA-ES usando a função de \textit{fitness} Ackley.
+
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering (12,24)-SES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_ses_ackley.eps}}
+	\subfloat[\centering CMA-ES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_cmaes_ackley.eps}}
+	\caption{Resultado obtido para a função de \textit{fitness} Ackley para os algoritmos de estratégias evolutivas (12,24)-SES e CMA-ES.}
+	\label{fig:ackley}
+\end{figure}
+
+A Figura \ref{fig:ackley_montecarlo} mostra a comparação de convergência da função de \textit{fitness} Ackley entre 4 algoritmos usando Monte Carlo para cada geração (\textit{iterations}).
+
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering \textit{Mean Fitness}]{\includegraphics[width=.49\textwidth]{results/mean_fitness_ackley.eps}}
+	\subfloat[\centering \textit{Best Fitness}]{\includegraphics[width=.49\textwidth]{results/best_fitness_ackley.eps}}
+	\caption{Comparação de convergência da função de \textit{fitness} Ackley para quatro algoritmos usando Monte Carlo para cada geração (\textit{iterations}).}
+	\label{fig:ackley_montecarlo}
+\end{figure}
 
 \subsection{Função Rastrigin}
-Basta colocar as figuras
+A Figura \ref{fig:rastrigin} mostra os resultados obtidos através das estratégias evolutivas (12,24)-SES e CMA-ES usando a função de \textit{fitness} Rastrigin.
+
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering (12,24)-SES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_ses_rastrigin.eps}}
+	\subfloat[\centering CMA-ES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_cmaes_rastrigin.eps}}
+	\caption{Resultado obtido para a função de \textit{fitness} Rastrigin para os algoritmos de estratégias evolutivas (12,24)-SES e CMA-ES.}
+	\label{fig:rastrigin}
+\end{figure}
+
+A Figura \ref{fig:rastrigin_montecarlo} mostra a comparação de convergência da função de \textit{fitness} Rastrigin entre 4 algoritmos usando Monte Carlo para cada geração (\textit{iterations}).
+
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering \textit{Mean Fitness}]{\includegraphics[width=.49\textwidth]{results/mean_fitness_rastrigin.eps}}
+	\subfloat[\centering \textit{Best Fitness}]{\includegraphics[width=.49\textwidth]{results/best_fitness_rastrigin.eps}}
+	\caption{Comparação de convergência da função de \textit{fitness} Rastrigin para quatro algoritmos usando Monte Carlo para cada geração (\textit{iterations}).}
+	\label{fig:rastrigin_montecarlo}
+\end{figure}
 
 \subsection{Função Schaffer}
-Basta colocar as figuras
+A Figura \ref{fig:schaffer} mostra os resultados obtidos através das estratégias evolutivas (12,24)-SES e CMA-ES usando a função de \textit{fitness} Schaffer.
 
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering (12,24)-SES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_ses_schaffer2d.eps}}
+	\subfloat[\centering CMA-ES]{\includegraphics[width=.49\textwidth]{results/evolution_strategy_cmaes_schaffer2d.eps}}
+	\caption{Resultado obtido para a função de \textit{fitness} Schaffer para os algoritmos de estratégias evolutivas (12,24)-SES e CMA-ES.}
+	\label{fig:schaffer}
+\end{figure}
+
+A Figura \ref{fig:schaffer_montecarlo} mostra a comparação de convergência da função de \textit{fitness} Rastrigin entre 4 algoritmos usando Monte Carlo para cada geração (\textit{iterations}).
+
+\begin{figure}[H]
+	\centering
+	\subfloat[\centering \textit{Mean Fitness}]{\includegraphics[width=.49\textwidth]{results/mean_fitness_schaffer2d.eps}}
+	\subfloat[\centering \textit{Best Fitness}]{\includegraphics[width=.49\textwidth]{results/best_fitness_schaffer2d.eps}}
+	\caption{Comparação de convergência da função de \textit{fitness} Schaffer para quatro algoritmos usando Monte Carlo para cada geração (\textit{iterations}).}
+	\label{fig:schaffer_montecarlo}
+\end{figure}
 
 \section{Discussões e Conclusões}
-Sugestão: cerca de uma página.
+Ao rodar algumas vezes o código, percebe-se que o resultado final depende muito da aleatoriedade das amostras, se nenhum amostra dentro de todas as gerações cai no mínimo global, ela nunca vai achar o mínimo global. Para uma mesma função, algumas vezes encontrava-se o mínimo global e em outras achava-se um mínimo local. Isso tanto para o CMA-ES como para o SES.
 
-\begin{itemize}
-  \item Por que você acha que os resultados são diferentes para cada função?
-  \item Comente de forma sucinta sobre os resultados para cada um dos algoritmos e das funções, principalmente sobre questões como convergência, incluindo sobre convergência para mínimo local.
-  
-\end{itemize}
+O aumento dos valores de $\mu$ e $\lambda$ melhorou a eficiência de encontrar o mínimo global para o SES como visto nos gráficos que mostram a convergência dos melhores \textit{fitnesses} e do valor médio dos \textit{fitnesses}. Mas, como também se percebe através destes gráficos, a simulação de Monte Carlo nem sempre converge para o mínimo global dado que aumentando os valores de $\mu$ e $\lambda$, o \textit{fitness} de convergência diminui. Isso é esperado, pois quanto mais amostras se tem, maior é a quantidade delas que caem num valor menor. E, por isso, a média das amostras irá convergir para um valor menor.
+
+Percebeu-se que as funções com mínimos e máximos locais mais acentuados (Rastrigin e Schaffer) apresentaram maior ruído nos gráficos de convergência. Isso é esperado dado a aleatoriedade das amostras feitas a cada geração (nem sempre o mesmo mínimo será encontrado).
+
+Percebeu-se que para algumas funções de \textit{fitness} o desempenho dos algoritmos é diferente, o que mostra que dependendo da função de custo/\textit{fitness} deve-se usar o algoritmo mais adequado ao problema.
+
+\subsection{Função \textit{Translated Sphere}}
+Esta função tem somente um mínimo local, portanto é mais fácil de encontrá-lo. Porém, as SES com $\mu$ e $\lambda$ menores não convergem para os valores mínimos.
+
+Sabe-se que a matriz de covariância inicial é a matriz identidade. Ao ver-se a animação, parece que essa matriz vai girando até atingir o ponto de convergência onde ela vai cada vez mais ``diminuindo''.
+
+Com valores de $\mu$ e $\lambda$ baixos, a chance de ter mais amostras perto do mínimo é menor. Quando esses valores são maiores, mais amostras podem cair perto do mínimo, fazendo com que a atualização da média e da covariância (pegando os $\mu$ melhores) realmente convirja para o mínimo global.
+
+Percebe-se que a função CMA-ES e a (12,24)-SES tem desempenho semelhantes, fazendo com que a CMA-ES seja melhor dado que usa $\mu=3$ e $\lambda=6$ (menos amostras). Isso também nos faz pensar que a posição encontrada está próxima do real mínimo global.
+
+\subsection{Função Ackley}
+Esta função possui mais mínimos e máximos globais que a anterior, portanto pode ser possível que o mínimo global não seja encontrado com mais dificuldade se comparada à função \textit{ translated sphere}. Percebe-se também que as SES não convergem para um mínimo global, dado que a CMA-ES convergiu para um valor de \textit{fitness} menor.
+
+Apesar de apresentar muitos mínimos e máximos locais, não apresenta muito ruído na curva de convergência. Isso pode ser devido ao fato de esses mínimos e máximos não serem muitos acentuados (em outras palavras, os gradientes não têm magnitudes tão grandes).
+
+Para esta função, a atualização da matriz de covariância depende muito de onde irão cair as amostras. As melhores irão puxar a matriz de covariância para elas, fazendo com que ela também gire até convergir para o ponto de mínimo encontrado. Mas o ponto final é dependente das amostras podendo levar a um ponto próximo de um mínimo local.
+
+A CMA-ES apresentou melhor performance do que as SES usadas, o que mostra que o algoritmo de atualização da média e da matriz de covariância é melhor e converge mais para o mínimo global do que as SES, mesmo usando menos amostras ($\mu$ e $\lambda$ menores).
+
+\subsection{Função Rastrigin}
+Essa função possui mínimos e máximos locais mais acentuados, fazendo com que a sua curva de convergência seja mais ruidosa do que as anteriores. Percebe-se também que as duas primeiras SES e a CMA-ES não convergem para um mínimo global, dado que a útima SES convergiu para um valor de \textit{fitness} menor.
+
+Para esta função, a atualização da matriz de covariância depende muito de onde irão cair as amostras. As melhores irão puxar a matriz de covariância para elas, fazendo com que ela também gire até convergir para o ponto de mínimo encontrado. Mas o ponto final é dependente das amostras podendo levar a um ponto próximo de um mínimo local.
+
+A (12,24)-SES apresentou melhor performance do que CMA-ES, o que mostra que, apesar de ter uma função de atualização melhor que a SES, a CMA-ES não convergiu para um valor menor dado ao número de amostras. Esse comportamento deve-se ao fato de quanto a superfície é acentuada e as amostras não caírem muito em valores menores. Porém, a CMA-ES ainda se mostra melhor que a SES se comparada às SES (3,6) e (6,12), dado que a CMA usa (3,6).
+
+\subsection{Função Schaffer}
+Para se obter a Figura \ref{fig:schaffer_montecarlo} mudou-se o número de \textit{trials} de Monte Carlo para 1600 e o número de gerações para 400, pois inicialmente os resultados estavam muito ruidosos e não conclusivos ao meu ver. Fiz estas alterações para que a curva do CMA-ES pudesse convergir para algum valor, dado que estava ainda com ruídos perceptivos.
+
+Essa função possui mínimos e máximos locais mais acentuados, fazendo com que a sua curva de convergência seja mais ruidosa do que as anteriores. Percebe-se também que a primeira SES e a CMA-ES não convergem para um mínimo global, dado que as útimas SES convergiram para valores de \textit{fitness} menores, mas não iguais, por mais que semelhantes.
+
+Para esta função, a atualização da matriz de covariância também depende muito de onde irão cair as amostras. As melhores irão puxar a matriz de covariância para elas, fazendo com que ela também gire até convergir para o ponto de mínimo encontrado. Mas o ponto final é dependente das amostras podendo levar a um ponto próximo de um mínimo local.
+
+A (12,24)-SES e a (6,12)-SES apresentaram melhores performances do que CMA-ES, o que mostra que, apesar de ter uma função de atualização melhor que a SES, a CMA-ES não convergiu para um valor menor dado ao número de amostras. Esse comportamento deve-se ao fato de quanto a superfície é acentuada e as amostras não caírem muito em valores menores. Porém, ainda se vê que a CMA-ES é melhor que a SES se comparada com a (3,6)-SES (para o mesmo número de amostras a CMA-ES obtém melhor resultado).
 
 \end{document}
 
